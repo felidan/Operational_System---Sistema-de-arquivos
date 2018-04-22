@@ -25,5 +25,5 @@ Ao criar um novo HD virtual o mesmo fica disponível no diretório **/HDVirtual*
 * create - cria um novo arquivo;
 * remove - remove um arquivo existente;
 * type - visualiza o arquivo;
-* # ou root - sai do HD.
+* root - sai do HD.
 
