@@ -24,14 +24,15 @@ class SystemCore{
 		SystemCore();
 		// manipulação do HD
 		void ListHd();
+		void DelHd(char nome[]);
 		bool inicializarHd(char nome[]);
 		bool CriarHd(char nome[]);
 		bool FormatarHd(char nome[]);
-		bool TypeHd(char nome[]);
+		bool TypeHd(char nome[], int flag);
 		void Salvar(char nome[]);
 		
 		// manipulação de arquivos
-		bool CriarArquivo(char nome[]);
+		bool CriarArquivo(char nome[], char conteudo[], int flag);
 		bool RemoveArquivo(char nome[]);
 		bool TypeArquivo(char nome[]);
 		
@@ -40,6 +41,11 @@ class SystemCore{
 		int FindBlocoArqVazio(int QtBloco);
 		int FindArquivoPorNome(char nome[]);
 		
+		bool Dir();
+		bool CopiaArquivo(char oldNome[], char newNome[]);
+		bool RenameArquivo(char oldNome[], char newNome[]);
+		bool EditArquivo(char nome[]);
+		bool StatusHd();
 		~SystemCore();
 };
 

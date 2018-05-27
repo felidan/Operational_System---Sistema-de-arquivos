@@ -20,6 +20,39 @@ void SystemCore::ListHd(){
 	printf("\n");
 }
 
+void SystemCore::DelHd(char nome[]){
+	char buffer[30];
+	int cont = 0;
+	strcpy(buffer,"del ");
+	int i;
+	for(i = 0; i<PATH.length(); i++){
+		buffer[(i+4)] = PATH[i];
+		cont++;
+	}
+	
+	cont = cont+4;
+	
+	i=0;
+	for(i = 0; nome[i] != 0; i++){
+		buffer[(i+ cont )] = nome[i];
+	}
+	
+	buffer[(i+cont)] = '.';
+	cont++;
+	buffer[(i+cont)] = 'f';
+	cont++;
+	buffer[(i+cont)] = 'l';
+	cont++;
+	buffer[(i+cont)] = 'p';
+	cont++;
+
+	buffer[(i+cont)] = 0;
+	
+	printf("\n");
+	system(buffer);
+	printf("\tHD %s removido com sucesso.\n\n", nome);
+}
+
 bool SystemCore::inicializarHd(char nome[]){
 	FILE *fp;
 	char caminho[100];
@@ -177,7 +210,7 @@ bool SystemCore::FormatarHd(char nome[]){
 	}
 }
 
-bool SystemCore::TypeHd(char nome[]){
+bool SystemCore::TypeHd(char nome[], int flag){
 	FILE *fp;
 	char caminho[100], str[2];
 	int i;
@@ -191,9 +224,14 @@ bool SystemCore::TypeHd(char nome[]){
 	caminho[i] = 0;
 	
 	try{
-		//inclui a extensão do HD
-		strcat(caminho, nome);
-		strcat(caminho, ".flp");
+		if(flag == 0){
+			//inclui a extensão do HD
+			strcat(caminho, nome);
+			strcat(caminho, ".flp");
+		}
+		else{
+			strcat(caminho, this->nomeHd);
+		}
 		
 		// Abre o HD
 		// Neste caso, a leitura do HD é feita pois neste contexto a função 
@@ -360,7 +398,7 @@ void SystemCore::Salvar(char nome[]){
 	fclose(fp);
 }
 
-bool SystemCore::CriarArquivo(char nome[]){
+bool SystemCore::CriarArquivo(char nome[], char conteudo[], int flag){
 	Ascii a;
 	char c;
 	char buffer[1000], bufferHexa[2000], nomeHdTemp[30];
@@ -374,17 +412,22 @@ bool SystemCore::CriarArquivo(char nome[]){
 		return false;
 	}
 	
-	printf("\nDigite o conteudo do arquivo (ENTER e em seguida CTRL-Z para encerrar):\n");
-	
-	fflush(stdin);
-	
-	// Lê os caracteres do arquivo digitados pelo usuário até que seja precionado CTRL-Z
-	while((c = getchar()) != EOF){
-		buffer[i] = c;
-		i++;
+	if(flag == 0){
+		
+		printf("\nDigite o conteudo do arquivo (ENTER e em seguida CTRL-Z para encerrar):\n");
+		
+		fflush(stdin);
+		
+		// Lê os caracteres do arquivo digitados pelo usuário até que seja precionado CTRL-Z
+		while((c = getchar()) != EOF){
+			buffer[i] = c;
+			i++;
+		}
+		buffer[(i-1)] = 0;
 	}
-	buffer[(i-1)] = 0;
-	
+	else{
+		strcpy(buffer, conteudo);
+	}
 	// Quantidade de blocos necessários para alocar o arquivo
 	/*
 	Como um caracter da tabela ASCII é representada por 2 caracteres que formam um em hexa, o buffer é multiplicado por 2
@@ -686,7 +729,375 @@ int SystemCore::FindArquivoPorNome(char nome[]){
 	
 	return -1;
 }
+
+bool SystemCore::Dir(){
+	FILE *fp;
+	char caminho[100], str[2];
+	int i;
+	Ascii asc;
 	
+	// monta o caminho do arquivo
+	for(i = 0; i<PATH.length(); i++){
+		caminho[i] = PATH[i];	
+	}
+	
+	caminho[i] = 0;
+	
+	try{
+		strcat(caminho, nomeHd);
+		
+		// Abre o HD
+		// Neste caso, a leitura do HD é feita pois neste contexto a função 
+		// inicializa não foi chamada ainda, já que não é necessário selecionar 
+		// um HD (selecthd) para executar o comando typehd 
+		if((fp = fopen(caminho, "rt")) == NULL){
+			printf("\tErro na leitura do HD: %s\n", nomeHd);
+			return false;
+		}	
+
+	   char buffer[(MAX_BLOCO_DIR + MAX_BLOCO_ARQ)][MAX_TAMANHO_BLOCO+1];
+	   
+	   // Posiciona o cursor no início do arquivo
+	   fseek(fp, 0, SEEK_SET);
+	
+	   // Lê o HD e armazena no buffer
+	   fread(buffer, MAX_TAMANHO_BLOCO + 1, MAX_BLOCO_DIR + MAX_BLOCO_ARQ, fp);
+	   
+	   // Carrega bloco de diretório
+	   // O bloco de diretorios não é gravado em hexadecimal, 
+	   // sendo assim, não é necessário converter
+	   for(int i=0; i<MAX_BLOCO_DIR; i++){
+	   	   // este processo é necessário, pois a cada 2 letras em hexa temos um caracter
+		   str[0] = buffer[i][0];
+		   str[1] = buffer[i][1];
+	   	   str[2] = 0;
+		   
+		   // Neste caso não queremos imprimir blocos que não estão sendo utilizados, 
+		   // por este motivo a comparação para ver se é ff
+		   if(strcmp(str, "ff") != 0){
+		       printf("\n");
+			   
+			   printf("\t");  
+			   
+		   
+			   for(int j=5; j<MAX_TAMANHO_BLOCO; j++){
+					
+					str[0] = buffer[i][j];
+					str[1] = 0;
+					
+					// Lê apenas se for diferente de |, 
+					// já que para o nosso HD o caracter '|' é NULL
+					if(strcmp(str, "|") != 0){
+						printf("%c ", str[0]);	
+					}
+				}
+			}
+	   }
+	   
+	   
+	   fclose(fp);
+	   
+	   printf("\n\n");
+	   	
+	   return true;
+	}
+	catch(exception& e){
+		cout<<"Exception: "<<e.what()<<endl;
+		
+		return false;
+	}
+}
+
+bool SystemCore::CopiaArquivo(char oldNome[], char newNome[]){
+	
+	char conteudo[200], tempEndereco[4], str[2], nomeHdTemp[30];
+	int endereco, indice, cont=0;
+	Ascii ascii;
+	
+	// Procura o arquivo pelo nome
+	indice = FindArquivoPorNome(oldNome);
+	
+	if(indice == -1){
+		printf("\n\tArquivo nao encontrado.\n\n");
+		return false;
+	}
+	
+	// recupera o endereço do inicio do arquivo para que o mesmo possa ser excluido
+	for(int i=0; i<4; i++){
+		tempEndereco[i] = blocoDiretorio[indice][(i+1)];
+	}
+	
+	// Converte este endereço para inteiro 
+	endereco = atoi(tempEndereco);
+	endereco = endereco - MAX_BLOCO_DIR;
+
+	
+	// copia a parte de arquivos
+	for(int i=endereco; i<MAX_BLOCO_ARQ; i++){
+		for(int j=0; j<MAX_TAMANHO_BLOCO; j=j+2){
+			
+			str[0] = blocoArquivo[i][j];
+			str[1] = blocoArquivo[i][(j+1)];
+			str[2] = 0;
+			
+			// copia até encontrar o caracter de fim de arquivo		
+			if(strcmp(str, "7c") != 0){
+				conteudo[cont] = ascii.getHexaToCarc(str);
+				cont++;
+			}
+			else{
+				conteudo[cont] = 0;
+				j = MAX_TAMANHO_BLOCO;
+				i = MAX_BLOCO_ARQ;
+			}
+		}
+	}
+	
+	printf("%s\n\n", conteudo);
+	
+	CriarArquivo(newNome, conteudo, 1);
+	
+	return true;
+}
+
+bool SystemCore::RenameArquivo(char oldNome[], char newNome[]){
+	
+	int indice, k;
+	char nomeHdTemp[30];
+	
+	// O if abaixo é necessário para que um arquivo ocupe apenas um bloco de diretório
+	if(strlen(newNome) > 26){
+		printf("\n\tO nome do arquivo esta muito grande\n\tFavor informar um nome com o limite de 26 caracteres.\n\n");
+		return false;
+	}
+	
+	// Procura o arquivo pelo nome
+	indice = FindArquivoPorNome(oldNome);
+	
+	if(indice == -1){
+		printf("\n\tArquivo nao encontrado.\n\n");
+		return false;
+	}
+	
+	// grava novo nome do arquivo
+	k = 5;
+	for(int i=0; newNome[i] != 0; i++){
+		blocoDiretorio[indice][k] = newNome[i];
+		k++;
+	}
+	
+	// Inicializa o bloco a ser usado gravando | em todo o bloco
+	for(int m=k; m<MAX_TAMANHO_BLOCO; m++){
+		blocoDiretorio[indice][m] = '|';
+	}
+	
+	// remove a extensão do arquivo para possa ser pasado pra a função de salvar
+	strcpy(nomeHdTemp, this->nomeHd);
+	nomeHdTemp[(strlen(nomeHdTemp)-4)] = 0; // remove o .flp
+	
+	// Salva HD
+	Salvar(nomeHdTemp);
+	
+}
+
+bool SystemCore::EditArquivo(char nome[]){
+	char tempEndereco[4], str[2], nomeHdTemp[30], buffer[1000];
+	int endereco, indice, i, qtBlocosi, posicaoArquivo;
+	double qtBlocosf;
+	Ascii ascii;
+	char c;
+	string temp;
+	
+	// Procura o arquivo pelo nome
+	indice = FindArquivoPorNome(nome);
+	
+	if(indice == -1){
+		printf("\n\tArquivo nao encontrado.\n\n");
+		return false;
+	}
+	
+	// recupera o endereço do inicio do arquivo para que o mesmo possa ser excluido
+	for(int i=0; i<4; i++){
+		tempEndereco[i] = blocoDiretorio[indice][(i+1)];
+	}
+	
+	// Converte este endereço para inteiro 
+	endereco = atoi(tempEndereco);
+	endereco = endereco - MAX_BLOCO_DIR;
+
+	// remove a parte de arquivos antiga
+	for(int i=endereco; i<MAX_BLOCO_ARQ; i++){
+		for(int j=0; j<MAX_TAMANHO_BLOCO; j=j+2){
+			
+			str[0] = blocoArquivo[i][j];
+			str[1] = blocoArquivo[i][(j+1)];
+			str[2] = 0;
+			
+			// apaga até encontrar o caracter de fim de arquivo		
+			if(strcmp(str, "7c") != 0){
+				blocoArquivo[i][j] = 'f';
+				blocoArquivo[i][(j+1)] = 'f';
+			}
+			else{
+				blocoArquivo[i][j] = 'f';
+				blocoArquivo[i][(j+1)] = 'f';
+				j = MAX_TAMANHO_BLOCO;
+				i = MAX_BLOCO_ARQ;
+			}
+		}
+	}
+	
+	printf("\nDigite o conteudo do arquivo (ENTER e em seguida CTRL-Z para encerrar):\n");
+		
+	fflush(stdin);
+	
+	// Lê os caracteres do arquivo digitados pelo usuário até que seja precionado CTRL-Z
+	while((c = getchar()) != EOF){
+		buffer[i] = c;
+		i++;
+	}
+	buffer[(i-1)] = 0;
+	
+	// Calcula a quantidade de blocos
+	qtBlocosf = (double)((strlen(buffer) * 2) + 1) / (double)MAX_TAMANHO_BLOCO;
+	
+	qtBlocosi = (int)qtBlocosf;
+	
+	if((qtBlocosf - qtBlocosi) > 0){
+		qtBlocosi++;
+	}
+	
+	// Procura a quantidade de blocos desejada e que estejam consecutivos na memoria e retorna o endereço do primeiro bloco
+	posicaoArquivo = FindBlocoArqVazio(qtBlocosi);
+	
+	
+	
+	
+	
+	
+	// endereço do inicio do arquivo
+	char tempP[4];
+	
+	// Converte o inteiro para char[]
+	sprintf(tempP, "%d", (posicaoArquivo + MAX_BLOCO_DIR));
+	
+	for(int m=0; m<4; m++){
+		tempEndereco[m]='0';
+	}
+	
+	// Completa o endereço com zero a esquerda para que possa ser gravado no bloco
+	int k = 4;
+	for(int m=strlen(tempP); m>=0; m--){
+		tempEndereco[k]=tempP[m];
+		k--;
+	}
+	
+	// Grava endereco do inicio do arquivo
+	k = 1;
+	for(i=0; tempEndereco[i] != 0; i++){
+		blocoDiretorio[indice][k] = tempEndereco[i];
+		k++;
+	}
+	
+	
+	
+	
+	
+	
+	
+	
+	// Grava blocos de arquivos
+	k = 0;
+	for(i=0; i<strlen(buffer); i++){
+		// converte caracter em hexadecimal
+		temp = ascii.getCaracToHexa(buffer[i]);
+		
+		blocoArquivo[posicaoArquivo][k] = temp[0];
+		k++;
+		blocoArquivo[posicaoArquivo][k] = temp[1];
+		k++;
+		
+		if(k == MAX_TAMANHO_BLOCO){ // se chegou ao final do bloco..
+			posicaoArquivo++; // passa para aproxima linha
+			k = 0; // retorna para o primeiro byte
+		}	
+	}
+	// grava fim do arquivo
+	blocoArquivo[posicaoArquivo][k] = '7';
+	blocoArquivo[posicaoArquivo][(k+1)] = 'c';
+	
+	// remove a extensão do arquivo para possa ser pasado pra a função de salvar
+	strcpy(nomeHdTemp, this->nomeHd);
+	nomeHdTemp[(strlen(nomeHdTemp)-4)] = 0; // remove o .flp
+	
+	// Salva HD
+	Salvar(nomeHdTemp);
+	
+	
+}
+
+bool SystemCore::StatusHd(){
+	char str[2];
+	int countBlocoDir = 0, countBlocoArq = 0;
+	
+	for(int i=0; i<MAX_BLOCO_DIR; i++){
+		str[0] = blocoDiretorio[i][0];
+		str[1] = blocoDiretorio[i][1];
+		str[2] = 0;
+		
+		// se encontrou ff significa que o bloco está vazio, então retorna o endereço
+		if(strcmp(str, "ff") == 0){
+			countBlocoDir++;
+		}
+	}
+	
+	int aux = 0;
+	
+	for(int i=0; i<MAX_BLOCO_ARQ; i++){
+		str[0] = blocoArquivo[i][0];
+		str[1] = blocoArquivo[i][1];
+		str[2] = 0;
+		// se encontrou um bloco vazio..
+		if(strcmp(str, "ff") == 0){
+			// soma um no contador
+			countBlocoArq++;
+		}		
+	}
+	
+	float pcUsoDir = (((MAX_BLOCO_DIR - countBlocoDir)*100)/MAX_BLOCO_DIR);
+	float pcLivreDir = (((countBlocoDir)*100)/MAX_BLOCO_DIR);
+	
+	// logica
+	printf("\n->Bloco de diretorio\n");
+	printf("\t");
+	printf("Blocos de diretorio em uso:    %d\n", (MAX_BLOCO_DIR - countBlocoDir));
+	printf("\t");
+	printf("Blocos de diretorio livre:     %d\n", countBlocoDir);
+	printf("\t");
+	printf("Percentual de uso (diretorio): %.2f %\n", pcUsoDir);
+	printf("\t");
+	printf("Percentual livre (diretorio):  %.2f %\n", pcLivreDir);
+	printf("\t");
+	printf("Bytes livres de diretorio:     %d bytes\n", 32*countBlocoDir);
+	
+	float pcUsoArq = (((MAX_BLOCO_ARQ - countBlocoArq)*100)/MAX_BLOCO_ARQ);
+	float pcLivreArq = (((countBlocoArq)*100)/MAX_BLOCO_ARQ);
+	
+	printf("\n->Bloco de arquivo\n");
+	printf("\t");
+	printf("Blocos de diretorio em uso:    %d\n", (MAX_BLOCO_ARQ - countBlocoArq));
+	printf("\t");
+	printf("Blocos de diretorio livre:     %d\n", countBlocoArq);
+	printf("\t");
+	printf("Percentual de uso (diretorio): %.2f %\n", pcUsoArq);
+	printf("\t");
+	printf("Percentual livre (diretorio):  %.2f %\n", pcLivreArq);
+	printf("\t");
+	printf("Bytes livres de diretorio:     %d bytes\n\n", 32*countBlocoArq);
+	
+
+}
+
 SystemCore::~SystemCore(){
 	
 }
